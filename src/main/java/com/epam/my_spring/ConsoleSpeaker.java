@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
  */
 
 
+@Benchmark
 public class ConsoleSpeaker implements Speaker {
     @Override
     public void say(String message) {

@@ -3,6 +3,7 @@ package com.epam.my_spring;
 /**
  * @author Evgeny Borisov
  */
+@Benchmark
 public class CleanerImpl implements Cleaner {
 
 

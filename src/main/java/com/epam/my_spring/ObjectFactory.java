@@ -3,10 +3,12 @@ package com.epam.my_spring;
 import lombok.SneakyThrows;
 import org.reflections.Reflections;
 
-import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 /**
@@ -15,12 +17,11 @@ import java.util.Set;
 public class ObjectFactory {
 
 
-
     private static ObjectFactory instance = new ObjectFactory();
     private Config config = new JavaHardcodedStupidSimpleConfig();
     private Reflections scanner = new Reflections(config.getPackagesToScan());
 
-    private List<ObjectConfigurator> configurators =new ArrayList<>();
+    private List<ObjectConfigurator> configurators = new ArrayList<>();
 
     @SneakyThrows
     private ObjectFactory() {
@@ -46,14 +47,41 @@ public class ObjectFactory {
 
         configure(t);
 
-        //todo here you should scan your class for methods, which starts with init and than you invoke them
+        runAllInitMethods(type, t);
+
+
+        if (type.isAnnotationPresent(Benchmark.class)) {
+            return (T) Proxy.newProxyInstance(type.getClassLoader(), type.getInterfaces(), new InvocationHandler() {
+                @Override
+                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+
+                    System.out.println("*******BENCHMARK STARTED FOR METHOD: " + method.getName() + "   ***********");
+                    long start = System.nanoTime();
+                    Object retVal = method.invoke(t, args);
+                    long end = System.nanoTime();
+                    System.out.println(end-start);
+                    System.out.println("*******BENCHMARK ENDED FOR METHOD: " + method.getName() + "   ***********");
+
+                    return retVal;
+                }
+            });
+        }
 
 
         return t;
     }
 
+    private <T> void runAllInitMethods(Class<T> type, T t) throws IllegalAccessException, InvocationTargetException {
+        Method[] methods = type.getMethods();
+        for (Method method : methods) {
+            if (method.getName().startsWith("init")) {
+                method.invoke(t);
+            }
+        }
+    }
+
     private <T> void configure(T t) {
-        configurators.forEach(conurator->conurator.configure(t));
+        configurators.forEach(conurator -> conurator.configure(t));
     }
 
     private <T> T create(Class<T> type) throws InstantiationException, IllegalAccessException, java.lang.reflect.InvocationTargetException, NoSuchMethodException {
